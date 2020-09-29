@@ -113,7 +113,29 @@ InitGraphics (
   //
   // Hint: Use GetMode/SetMode functions.
   //
+  /*char c='n';
+  int Md=0;
+  while ((c=='n')&&(c!='s'))
+  {
+    if ((UINT32) Md == GraphicsOutput->Mode->MaxMode-1) Md=0;
+    else Md+=1;
+    GraphicsOutput->SetMode(GraphicsOutput, (UINT32) Md);
+    с=getchar();
+  }*/
 
+  int Mode=0;
+  UINTN ModeSize=0;
+  EFI_STATUS ModeStatus=EFI_SUCCESS;
+  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *ModeInfo=NULL;
+
+  ModeStatus=GraphicsOutput->QueryMode(GraphicsOutput, (UINT32) Mode, &ModeSize, &ModeInfo);
+  while ((!((ModeInfo->HorizontalResolution==1920)&&(ModeInfo->VerticalResolution==1080)))&&(ModeStatus==EFI_SUCCESS)&&(Mode<=GraphicsOutput->Mode->MaxMode-1))
+  {
+    Mode++;
+    ModeStatus=GraphicsOutput->QueryMode(GraphicsOutput, (UINT32) Mode, &ModeSize, &ModeInfo);
+  }
+
+  GraphicsOutput->SetMode(GraphicsOutput,(UINT32) Mode);
   //
   // Fill screen with black.
   //
@@ -968,7 +990,7 @@ UefiMain (
   UINTN              EntryPoint;
   VOID               *GateData;
 
-#if 1 ///< Uncomment to await debugging
+#if 0 ///< Uncomment to await debugging
   volatile BOOLEAN   Connected;
   DEBUG ((DEBUG_INFO, "JOS: Awaiting debugger connection\n"));
 
