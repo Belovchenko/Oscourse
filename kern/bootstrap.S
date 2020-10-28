@@ -5,12 +5,12 @@
 # We set the PTE_MBZ bits in PDE (pgdir) to skip the last step.
 .code64
 .set pml4,   pml4phys
-.set pdpt1,  pml4 + 0x1000
+.set pdpt1,  pml4 + 0x1000 # pdpt1 - сдвиг на одну страницу
 .set pdpt2,  pml4 + 2*0x1000
 .set pde1,   pml4 + 3*0x1000
 .set pde2,   pml4 + 4*0x1000
 
-#define PML_SIZE 11264 ///< 4096/4 * 11
+#define PML_SIZE 11264 ///< 4096/4 * 11=размер страницы / 4 байта (размер двойного слова) * кол-во страниц
 
 .text
 .globl _head64
@@ -24,15 +24,15 @@ _head64:
   # Build an early boot pml4 at pml4phys (physical = virtual for it).
 
   # Initialize the page tables.
-  movl $pml4,%edi
-  xorl %eax,%eax
+  movl $pml4,%edi # pml4 - адрес таблицы страниц
+  xorl %eax,%eax  # обнуляем eax
   movl $PML_SIZE,%ecx  # moving these many words to the 11 pages
-  rep stosl
+  rep stosl # rep (повторить ecx раз) stosl (сохранить в edi значение, лежащее в eax)
 
   # Creating a 4G boot page table...
   # Setting the 4-level page table with only the second entry needed (PML4).
   movl $pml4,%eax
-  movl $pdpt1, %ebx
+  movl $pdpt1, %ebx # pdpt1, pdpt2 - адреса двух таблиц второго уровня
   orl $PTE_P,%ebx
   orl $PTE_W,%ebx
   movl %ebx,(%eax)
@@ -40,7 +40,7 @@ _head64:
   movl $pdpt2, %ebx
   orl $PTE_P,%ebx
   orl $PTE_W,%ebx
-  movl %ebx,0x8(%eax)
+  movl %ebx,0x8(%eax) # мы занесли в таблицу первого уровня адреса таблиц второго уровня
 
   # Setting the 3rd level page table (PDPE).
   # 4 entries (counter in ecx), point to the next four physical pages (pgdirs).

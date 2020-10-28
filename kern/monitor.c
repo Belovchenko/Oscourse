@@ -37,7 +37,8 @@ static struct Command commands[] = {
     {"world", "Display ',world!' message", mon_world},
     {"timer_start", "Start timer", mon_start},
     {"timer_stop", "Stop timer", mon_stop},
-    {"timer_freq", "Count processor frequency", mon_frequency}};
+    {"timer_freq", "Count processor frequency", mon_frequency},
+    {"memory", "Print list of all physical memory pages", mon_memory}};
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -108,7 +109,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
 // LAB 5: Your code here.
 // Implement timer_start (mon_start), timer_stop (mon_stop), timer_freq (mon_frequency) commands.
 
-<<<<<<< HEAD
 int mon_start(int argc, char **argv, struct Trapframe *tf) {
   if (argc != 2) {
     return 1;
@@ -127,11 +127,28 @@ int mon_frequency(int argc, char **argv, struct Trapframe *tf) {
   timer_cpu_frequency(argv[1]);
   return 0;
 }
-=======
 // LAB 6: Your code here.
 // Implement memory (mon_memory) commands.
 
->>>>>>> lab6
+int
+mon_memory(int argc, char **argv, struct Trapframe *tf) {
+  size_t i;
+  int is_cur_free;
+
+  for (i = 1; i <= npages; i++) {
+    is_cur_free = !page_is_allocated(&pages[i - 1]);
+    cprintf("%lu", i);
+    if ((i < npages) && (page_is_allocated(&pages[i]) ^ is_cur_free)) {
+      while ((i < npages) && (page_is_allocated(&pages[i]) ^ is_cur_free)) {
+        i++;
+      }
+      cprintf("..%lu", i);
+    }
+    cprintf(is_cur_free ? " FREE\n" : " ALLOCATED\n");
+  }
+
+  return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 

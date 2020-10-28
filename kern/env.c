@@ -347,7 +347,9 @@ struct Proghdr *ph = (struct Proghdr *)(binary + elf->e_phoff); // Proghdr = pro
 
     e->env_tf.tf_rip = elf->e_entry; //Виртуальный адрес точки входа, которому система передает управление при запуске процесса. в регистр rip записываем адрес точки входа для выполнения процесса
 
+    #ifdef CONFIG_KSPACE
     bind_functions(e, binary); // Вызывается bind_functions, который связывает все что мы сделали выше (инициализация среды) с "кодом" самого процесса
+    #endif
   };
 };
 
