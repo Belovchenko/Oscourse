@@ -137,6 +137,8 @@ i386_init(void) {
 
   // choose the timer used for scheduling: hpet or pit
   timers_schedule("hpet0");
+  //timers_schedule("hpet1");
+  //timers_schedule("pit");
   clock_idt_init();
 
 #ifdef CONFIG_KSPACE
@@ -150,6 +152,8 @@ i386_init(void) {
 #endif
 
   // Schedule and run the first user environment!
+  uint8_t rtc_status = rtc_check_status(); // читаем RTC
+  pic_send_eoi(rtc_status); // отправляем сигнал на контроллер прерываний
   sched_yield();
 }
 
