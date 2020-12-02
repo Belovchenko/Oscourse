@@ -473,8 +473,10 @@ load_icode(struct Env *e, uint8_t *binary) {
   }
 
   struct Proghdr *ph = (struct Proghdr *)(binary + elf->e_phoff); // Proghdr = prog header. Он лежит со смещением elf->e_phoff относительно начала фаила
-
+  //****************************************************
+  //lcr3(e->env_cr3);
   lcr3(PADDR(e->env_pml4e)); //переключаем cr3 в режимы работы с адресным пространством процесса
+  //*************************************************
   for (size_t i = 0; i < elf->e_phnum; i++) { // elf->e_phnum - Число заголовков программы. Если у файла нет таблицы заголовков программы, это поле содержит 0.
     if (ph[i].p_type == ELF_PROG_LOAD) {
 
@@ -492,6 +494,7 @@ load_icode(struct Env *e, uint8_t *binary) {
   }
 
   lcr3(PADDR(kern_pml4e)); // С указателем е надо работать в режиме ядра (происходит изменение е)
+  //lcr3(kern_cr3);
   e->env_tf.tf_rip = elf->e_entry; //Виртуальный адрес точки входа, которому система передает управление при запуске процесса. в регистр rip записываем адрес точки входа для выполнения процесса
 #ifdef CONFIG_KSPACE
   bind_functions(e, binary); // Вызывается bind_functions, который связывает все что мы сделали выше (инициализация среды) с "кодом" самого процесса
@@ -626,10 +629,10 @@ env_destroy(struct Env *e) {
   // If e is currently running on other CPUs, we change its state to
   // ENV_DYING. A zombie environment will be freed the next time
   // it traps to the kernel.
-
   e->env_status = ENV_DYING; // environment died, long live new environment (not here)!
+  env_free(e);
   if (e == curenv) {
-    env_free(e); // очистка среды
+    //env_free(e); // очистка среды
     sched_yield(); // вызывается функция, обрабатывающая смену/удаление среды
   }
 }

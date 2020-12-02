@@ -30,6 +30,7 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf)) {
   if (_pgfault_handler == 0) {
     // First time through!
     // LAB 9: Your code here.
+    sys_page_alloc(envid, (void *) UXSTACKTOP - PGSIZE, PTE_W);
 
   }
 

@@ -82,7 +82,20 @@ sys_exofork(void) {
   // will appear to return 0.
 
   // LAB 9: Your code here.
-  return -1;
+  struct Env *e = NULL;
+  int res;
+
+  if ((res = env_alloc(&e, curenv->env_id)) < 0) {
+    return res;
+  }
+
+  e->env_status = ENV_NOT_RUNNABLE;
+  e->env_tf = curenv->env_tf;
+  e->env_pgfault_upcall = curenv->env_pgfault_upcall;
+
+	e->env_tf.tf_regs.reg_rax = 0;
+
+	return e->env_id;
 }
 
 // Set envid's env_status to status, which must be ENV_RUNNABLE
@@ -101,7 +114,15 @@ sys_env_set_status(envid_t envid, int status) {
   // envid's status.
 
   // LAB 9: Your code here.
-  return -1;
+  struct Env *e;
+  if (envid2env(envid, &e, 1) < 0) {
+      return -E_BAD_ENV;
+  }
+  if (!(status == ENV_RUNNABLE || status == ENV_NOT_RUNNABLE)) {
+      return -E_INVAL;
+  }
+  e->env_status = status;
+  return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -115,7 +136,12 @@ sys_env_set_status(envid_t envid, int status) {
 static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func) {
   // LAB 9: Your code here.
-  return -1;
+  struct Env *e;
+  if (envid2env(envid, &e, 1) < 0) {
+    return -E_BAD_ENV;
+  }
+  e->env_pgfault_upcall = func;
+  return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -144,7 +170,26 @@ sys_page_alloc(envid_t envid, void *va, int perm) {
   //   allocated!
 
   // LAB 9: Your code here.
-  return -1;
+  struct PageInfo *pp;
+	struct Env *e;
+
+	if (envid2env(envid, &e, 1) < 0) {
+		return -E_BAD_ENV;
+	}
+  if ((uintptr_t) va >= UTOP || PGOFF(va)) {
+    return -E_INVAL;
+  }
+  if (perm & ~PTE_SYSCALL) {
+    return -E_INVAL;
+  }
+  if (!(pp = page_alloc(ALLOC_ZERO))) {
+    return -E_NO_MEM;
+  }
+  if (page_insert(e->env_pml4e, pp, va, perm | PTE_U) < 0) {
+    page_free(pp);
+    return -E_NO_MEM;
+  }
+  return 0;
 }
 
 // Map the page of memory at 'srcva' in srcenvid's address space
@@ -174,7 +219,30 @@ sys_page_map(envid_t srcenvid, void *srcva,
   //   check the current permissions on the page.
 
   // LAB 9: Your code here.
-  return -1;
+  struct Env *srcenv, *dstenv;
+	struct PageInfo *pp;
+  pte_t *ptep;
+
+  if (envid2env(srcenvid, &srcenv, 1) < 0 || envid2env(dstenvid, &dstenv, 1) < 0) {
+    return -E_BAD_ENV;
+  }
+  if ((uintptr_t) srcva >= UTOP || PGOFF(srcva) || 
+      (uintptr_t) dstva >= UTOP || PGOFF(dstva)) {
+    return -E_INVAL;
+  }
+  if (perm & ~PTE_SYSCALL) {
+    return -E_INVAL;
+  }
+  if (!(pp = page_lookup(srcenv->env_pml4e, srcva, &ptep))) { 
+    return -E_INVAL;
+	}
+	if (!(*ptep & PTE_W) && (perm & PTE_W)) {
+	  return -E_INVAL;
+	}
+	if (page_insert(dstenv->env_pml4e, pp, dstva, perm | PTE_U)) {
+		return -E_NO_MEM;
+	}
+  return 0;
 }
 
 // Unmap the page of memory at 'va' in the address space of 'envid'.
@@ -189,7 +257,16 @@ sys_page_unmap(envid_t envid, void *va) {
   // Hint: This function is a wrapper around page_remove().
 
   // LAB 9: Your code here.
-  return -1;
+  struct Env *e;
+    
+  if (envid2env(envid, &e, 1) < 0) {
+    return -E_BAD_ENV;
+  }
+	if ((uintptr_t)va >= UTOP || PGOFF(va)) {
+    return -E_INVAL;
+	}
+	page_remove(e->env_pml4e, va);
+	return 0;
 }
 
 // Try to send 'value' to the target env 'envid'.
@@ -233,7 +310,41 @@ sys_page_unmap(envid_t envid, void *va) {
 static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm) {
   // LAB 9: Your code here.
-  return -1;
+  struct Env *e;
+	struct PageInfo *p;
+	pte_t *ptep;
+
+	if (envid2env(envid, &e, 0) < 0) {
+		return -E_BAD_ENV;
+	}
+	if (!e->env_ipc_recving) {
+		return -E_IPC_NOT_RECV;
+	}
+	if ((uintptr_t) srcva < UTOP) {
+		if (PGOFF(srcva)) {
+			return -E_INVAL;
+		}
+		if ((perm & ~(PTE_U | PTE_P)) || (perm & ~PTE_SYSCALL)) {
+			return -E_INVAL;
+		}
+		if (!(p = page_lookup(curenv->env_pml4e, srcva, &ptep))) {
+			return -E_INVAL;
+		}
+		if (!(*ptep & PTE_W) && (perm & PTE_W)) {
+			return -E_INVAL;
+		}
+		if (page_insert(e->env_pml4e, p, e->env_ipc_dstva, perm)) {
+			return -E_NO_MEM;
+		}
+	}
+	else {
+		e->env_ipc_perm = 0;
+	}
+	e->env_ipc_recving = 0;
+	e->env_ipc_from = curenv->env_id;
+	e->env_ipc_value = value;
+	e->env_status = ENV_RUNNABLE;
+	return 0;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -250,7 +361,15 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm) {
 static int
 sys_ipc_recv(void *dstva) {
   // LAB 9: Your code here.
-  return -1;
+  if ((uintptr_t)dstva < UTOP && PGOFF(dstva)) {
+    return -E_INVAL;
+  }
+	curenv->env_ipc_recving = 1;
+	curenv->env_ipc_dstva = dstva;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+  curenv->env_tf.tf_regs.reg_rax = 0;
+	sched_yield();
+	return 0;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -258,8 +377,8 @@ uintptr_t
 syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t a4, uintptr_t a5) {
   // Call the function corresponding to the 'syscallno' parameter.
   // Return any appropriate return value.
-<<<<<<< HEAD
-  // LAB 8
+  // LAB 8: Your code here.
+  // LAB 9: Your code here.
   if (syscallno == SYS_cputs) {
     //cprintf("I am here1\n");
     sys_cputs((const char *) a1, (size_t) a2);
@@ -273,13 +392,30 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
   } else if (syscallno == SYS_env_destroy) {
     //cprintf("I am here\n");
     return sys_env_destroy((envid_t) a1);
+  } else if (syscallno == SYS_exofork) {
+    return sys_exofork();
+  } else if (syscallno == SYS_env_set_status) {
+    return sys_env_set_status((envid_t) a1, (int) a2);
+  } else if (syscallno == SYS_page_alloc) {
+    return sys_page_alloc((envid_t) a1, (void *) a2, (int) a3);
+  } else if (syscallno == SYS_page_map) {
+    return sys_page_map((envid_t) a1, (void *) a2, (envid_t) a3, (void *) a4, (int) a5);
+  } else if (syscallno == SYS_page_unmap) {
+    return sys_page_unmap((envid_t) a1, (void *) a2);
+  } else if (syscallno == SYS_env_set_pgfault_upcall) {
+    return sys_env_set_pgfault_upcall((envid_t) a1, (void *) a2);
+  } else if (syscallno == SYS_yield) {
+    sys_yield();
+    return 0;
+  } else if (syscallno == SYS_ipc_try_send) {
+    return sys_ipc_try_send((envid_t) a1, (uint32_t) a2, (void *) a3, (unsigned) a4);
+  } else if (syscallno == SYS_ipc_recv) {
+    return sys_ipc_recv((void *) a1);
+  // LAB 9 code end
   } else {
     return -E_INVAL;
   }
-=======
-  // LAB 8: Your code here.
-  // LAB 9: Your code here.
+  
 
->>>>>>> lab9
   return -E_INVAL;
 }
