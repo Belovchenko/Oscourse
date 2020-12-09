@@ -49,7 +49,7 @@ sys_getenvid(void) {
 //		or the caller doesn't have permission to change envid.
 static int
 sys_env_destroy(envid_t envid) {
-  // LAB 8 code
+  // LAB 8: Your code here.
   int r;
 	struct Env *e;
 
@@ -60,6 +60,7 @@ sys_env_destroy(envid_t envid) {
 	else
 		cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
 	env_destroy(e);
+  
 	return 0;
 }
 
@@ -92,7 +93,6 @@ sys_exofork(void) {
   e->env_status = ENV_NOT_RUNNABLE;
   e->env_tf = curenv->env_tf;
   e->env_pgfault_upcall = curenv->env_pgfault_upcall;
-
 	e->env_tf.tf_regs.reg_rax = 0;
 
 	return e->env_id;
@@ -114,14 +114,17 @@ sys_env_set_status(envid_t envid, int status) {
   // envid's status.
 
   // LAB 9: Your code here.
-  struct Env *e;
+  struct Env  *e;
+
   if (envid2env(envid, &e, 1) < 0) {
       return -E_BAD_ENV;
   }
+
   if (!(status == ENV_RUNNABLE || status == ENV_NOT_RUNNABLE)) {
       return -E_INVAL;
   }
   e->env_status = status;
+
   return 0;
 }
 
@@ -170,15 +173,18 @@ sys_page_alloc(envid_t envid, void *va, int perm) {
   //   allocated!
 
   // LAB 9: Your code here.
+
   struct PageInfo *pp;
 	struct Env *e;
 
 	if (envid2env(envid, &e, 1) < 0) {
 		return -E_BAD_ENV;
 	}
+
   if ((uintptr_t) va >= UTOP || PGOFF(va)) {
     return -E_INVAL;
   }
+
   if (perm & ~PTE_SYSCALL) {
     return -E_INVAL;
   }
@@ -194,7 +200,7 @@ sys_page_alloc(envid_t envid, void *va, int perm) {
 
 // Map the page of memory at 'srcva' in srcenvid's address space
 // at 'dstva' in dstenvid's address space with permission 'perm'.
-// Perm has the same restrictions as in sys_page_alloc, except
+// Perm has the same restrictions as in _alloc, except
 // that it also must not grant write access to a read-only
 // page.
 //
@@ -226,13 +232,16 @@ sys_page_map(envid_t srcenvid, void *srcva,
   if (envid2env(srcenvid, &srcenv, 1) < 0 || envid2env(dstenvid, &dstenv, 1) < 0) {
     return -E_BAD_ENV;
   }
+
   if ((uintptr_t) srcva >= UTOP || PGOFF(srcva) || 
       (uintptr_t) dstva >= UTOP || PGOFF(dstva)) {
     return -E_INVAL;
   }
+
   if (perm & ~PTE_SYSCALL) {
     return -E_INVAL;
   }
+
   if (!(pp = page_lookup(srcenv->env_pml4e, srcva, &ptep))) { 
     return -E_INVAL;
 	}
@@ -320,13 +329,14 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm) {
 	if (!e->env_ipc_recving) {
 		return -E_IPC_NOT_RECV;
 	}
+
 	if ((uintptr_t) srcva < UTOP) {
 		if (PGOFF(srcva)) {
 			return -E_INVAL;
 		}
-		if ((perm & ~(PTE_U | PTE_P)) || (perm & ~PTE_SYSCALL)) {
-			return -E_INVAL;
-		}
+		if ((perm & ~(PTE_AVAIL | PTE_W)) != (PTE_U | PTE_P)) {
+      return -E_INVAL;
+    }
 		if (!(p = page_lookup(curenv->env_pml4e, srcva, &ptep))) {
 			return -E_INVAL;
 		}
@@ -336,8 +346,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm) {
 		if (page_insert(e->env_pml4e, p, e->env_ipc_dstva, perm)) {
 			return -E_NO_MEM;
 		}
-	}
-	else {
+    e->env_ipc_perm = perm;
+	} else {
 		e->env_ipc_perm = 0;
 	}
 	e->env_ipc_recving = 0;
@@ -379,43 +389,37 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
   // Return any appropriate return value.
   // LAB 8: Your code here.
   // LAB 9: Your code here.
+
   if (syscallno == SYS_cputs) {
-    //cprintf("I am here1\n");
     sys_cputs((const char *) a1, (size_t) a2);
     return 0;
-  } else if (syscallno == SYS_cgetc) {
-    //cprintf("I am here2\n");
+  } 
+  else if (syscallno == SYS_cgetc)
     return sys_cgetc();
-  } else if (syscallno == SYS_getenvid) {
-    //cprintf("I am here3\n");
+  else if (syscallno == SYS_getenvid)
     return sys_getenvid();
-  } else if (syscallno == SYS_env_destroy) {
-    //cprintf("I am here\n");
+  else if (syscallno == SYS_env_destroy)
     return sys_env_destroy((envid_t) a1);
-  } else if (syscallno == SYS_exofork) {
+  else if (syscallno == SYS_exofork)
     return sys_exofork();
-  } else if (syscallno == SYS_env_set_status) {
+  else if (syscallno == SYS_env_set_status)
     return sys_env_set_status((envid_t) a1, (int) a2);
-  } else if (syscallno == SYS_page_alloc) {
+  else if (syscallno == SYS_page_alloc)
     return sys_page_alloc((envid_t) a1, (void *) a2, (int) a3);
-  } else if (syscallno == SYS_page_map) {
+  else if (syscallno == SYS_page_map)
     return sys_page_map((envid_t) a1, (void *) a2, (envid_t) a3, (void *) a4, (int) a5);
-  } else if (syscallno == SYS_page_unmap) {
+  else if (syscallno == SYS_page_unmap)
     return sys_page_unmap((envid_t) a1, (void *) a2);
-  } else if (syscallno == SYS_env_set_pgfault_upcall) {
+  else if (syscallno == SYS_env_set_pgfault_upcall)
     return sys_env_set_pgfault_upcall((envid_t) a1, (void *) a2);
-  } else if (syscallno == SYS_yield) {
+  else if (syscallno == SYS_yield) {
     sys_yield();
     return 0;
-  } else if (syscallno == SYS_ipc_try_send) {
+  } 
+  else if (syscallno == SYS_ipc_try_send)
     return sys_ipc_try_send((envid_t) a1, (uint32_t) a2, (void *) a3, (unsigned) a4);
-  } else if (syscallno == SYS_ipc_recv) {
+  else if (syscallno == SYS_ipc_recv)
     return sys_ipc_recv((void *) a1);
-  // LAB 9 code end
-  } else {
+  else 
     return -E_INVAL;
-  }
-  
-
-  return -E_INVAL;
 }

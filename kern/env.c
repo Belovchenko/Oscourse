@@ -541,6 +541,11 @@ env_create(uint8_t *binary, enum EnvType type){
   newenv->env_type = type;
 
   load_icode(newenv, binary); // load instruction code
+
+  if (type == ENV_TYPE_FS) {
+	    newenv->env_tf.tf_rflags |= FL_IOPL_3;
+	}
+  
 }
 //
 // Frees env e and all memory it uses.
