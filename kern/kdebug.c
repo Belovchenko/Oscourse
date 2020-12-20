@@ -60,8 +60,9 @@ debuginfo_rip(uintptr_t addr, struct Ripdebuginfo *info) {
     lcr3(PADDR(kern_pml4e));
     load_kernel_dwarf_info(&addrs);
     lcr3(tmp_cr3);
-    //panic("Can't search for user-level addresses yet!");
-  } else {
+  } 
+  else 
+  {
     load_kernel_dwarf_info(&addrs);
   }
   enum {

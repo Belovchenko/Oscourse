@@ -6,9 +6,7 @@
 // PTE_COW marks copy-on-write page table entries.
 // It is one of the bits explicitly allocated to user processes (PTE_AVAIL).
 #define PTE_COW 0x800
-
 extern void _pgfault_upcall(void);
-
 //
 // Custom page fault handler - if faulting page is copy-on-write,
 // map in our own private writable copy.
@@ -24,7 +22,8 @@ pgfault(struct UTrapframe *utf) {
   //   Use the read-only page table mappings at uvpt
   //   (see <inc/memlayout.h>).
 
-  // LAB 9 code
+  // LAB 9: Your code here.
+
   void *addr = (void *) utf->utf_fault_va;
 	uint64_t err = utf->utf_err;
   int r;
@@ -32,8 +31,6 @@ pgfault(struct UTrapframe *utf) {
   if (!((err & FEC_WR) && (uvpt[PGNUM(addr)] & PTE_COW))) {
     panic("Not a WR or not a COW page! va: %lx err: %lx\n", (uint64_t)addr, err);
   }
-  // LAB 9 code end
-
   // Allocate a new page, map it at a temporary location (PFTEMP),
   // copy the data from the old page to the new page, then move the new
   // page to the old page's address.
@@ -42,16 +39,16 @@ pgfault(struct UTrapframe *utf) {
   //   No need to explicitly delete the old page's mapping.
   //   Make sure you DO NOT use sanitized memcpy/memset routines when using UASAN.
 
-  // LAB 9 code
+  // LAB 9: Your code here.
   if ((r = sys_page_alloc(0, (void *) PFTEMP, PTE_W)) < 0) {
 		panic("pgfault error: sys_page_alloc: %i\n", r);
   }
 
-#ifdef SANITIZE_USER_SHADOW_BASE 
-  __nosan_memcpy((void *) PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
-#else
-	memmove((void *) PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
-#endif
+  #ifdef SANITIZE_USER_SHADOW_BASE 
+    __nosan_memcpy((void *) PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
+  #else
+	  memmove((void *) PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
+  #endif
 
 	if ((r = sys_page_map(0, (void *) PFTEMP, 0, ROUNDDOWN(addr, PGSIZE), PTE_W)) < 0) {
 	  panic("pgfault error: sys_page_map: %i\n", r);
@@ -60,7 +57,6 @@ pgfault(struct UTrapframe *utf) {
 	if ((r = sys_page_unmap(0, (void *) PFTEMP)) < 0) {
 	  panic("pgfault error: sys_page_unmap: %i\n", r);
 	}
-  // LAB 9 code end
 }
 
 //
@@ -76,13 +72,19 @@ pgfault(struct UTrapframe *utf) {
 //
 static int
 duppage(envid_t envid, uintptr_t pn) {
+  // LAB 9: Your code here.
 
-  // LAB 9 code
   pte_t ent = uvpt[pn] & PTE_SYSCALL;
   int r;
   envid_t id = sys_getenvid();
 
-  if (ent & (PTE_W | PTE_COW)) {
+  if (uvpt[pn] & PTE_SHARE) 
+  {
+    if ((r = sys_page_map(id, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), ent)) < 0) 
+      panic("duppage error: sys_page_map PTE_SHARE: %i\n", r);
+  }
+  else if (ent & (PTE_W | PTE_COW))   
+  {
     ent = (ent | PTE_COW) & ~PTE_W;
     r = sys_page_map(id, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), ent);
 
@@ -95,9 +97,6 @@ duppage(envid_t envid, uintptr_t pn) {
   }
   
   return r;
-  // LAB 9 code end
-
-  // return 0;
 }
 
 //
@@ -118,9 +117,7 @@ duppage(envid_t envid, uintptr_t pn) {
 //
 envid_t
 fork(void) {
-  // Duplicating shadow addresses is insane. Make sure to skip shadow addresses in COW above.
-
-  // LAB 9 code
+  // LAB 9: Your code here.
   envid_t e;
   int r;
 
@@ -190,9 +187,6 @@ fork(void) {
     }
     return e;
   }
-  // LAB 9 code end
-
-  // return -1;
 }
 
 // Challenge!

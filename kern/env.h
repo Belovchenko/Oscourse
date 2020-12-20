@@ -28,7 +28,7 @@ curenv_getid(void) {
 }
 
 #ifdef CONFIG_KSPACE
-bind_functions(struct Env *, uint8_t *);
+static void bind_functions(struct Env *e, uint8_t *;
 extern void sys_exit(void);
 extern void sys_yield(void);
 #endif

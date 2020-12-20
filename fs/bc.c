@@ -48,6 +48,7 @@ bc_pgfault(struct UTrapframe *utf) {
   // the disk.
   //
   // LAB 10: Your code here.
+
   int r;
   addr = ROUNDDOWN(addr, PGSIZE);
 	if ((r = sys_page_alloc(0, addr, PTE_W)) < 0) {
@@ -59,11 +60,10 @@ bc_pgfault(struct UTrapframe *utf) {
 
   // Clear the dirty bit for the disk block page since we just read the
 	// block from disk
-	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0) {
+	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0) { // для последующей откачки
 		panic("in bc_pgfault, sys_page_map: %i", r);
   }
 
-	// Check that the block we read was allocated. 
 	if (bitmap && block_is_free(blockno)) {
 		panic("reading free block %08x\n", blockno);
   }
@@ -86,6 +86,7 @@ flush_block(void *addr) {
     panic("reading non-existent block %08x out of %08x\n", blockno, super->s_nblocks);
 
   // LAB 10: Your code here.
+
   addr = ROUNDDOWN(addr, PGSIZE);
 	if (!va_is_mapped(addr) || !va_is_dirty(addr)) {
 		return;

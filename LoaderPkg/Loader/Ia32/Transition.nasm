@@ -91,21 +91,12 @@ ASM_PFX(CallKernelThroughGateAsm):
 
     ; 1. Disable paging.
     ; LAB 2: Your code here:
-    
-    ;mov ecx, 0x00000001
-    ;shl ecx, 31
-    ;not ecx
     mov ecx, CR0
-    and ecx, 0x7FFFFFFF
+    BTR ecx, 31
     mov CR0, ecx
-    
-    ;mov ecx, CR0
-    ;BTR ecx, 31
-    ;mov CR0, ecx
-    
+
     ; 2. Switch to our GDT that supports 64-bit mode and update CS to LINEAR_CODE_SEL.
     ; LAB 2: Your code here:
-    
     lgdt [GDT_DESCRIPTOR]
     jmp LINEAR_CODE_SEL:AsmWithOurGdt
 
@@ -113,74 +104,52 @@ AsmWithOurGdt:
 
     ; 3. Reset all the data segment registers to linear mode (LINEAR_DATA_SEL).
     ; LAB 2: Your code here:
-    
     mov eax, LINEAR_DATA_SEL
     mov ds, ax
     mov ss, ax
     mov es, ax
     mov gs, ax
     mov fs, ax
-    
+
     ; 4. Enable PAE/PGE in CR4, which is required to transition to long mode.
     ; This may already be enabled by the firmware but is not guaranteed.
     ; LAB 2: Your code here:
     
     mov ecx, CR4
-    ;shl ecx, 5
-    or ecx, 0x00000020
-    
-    mov eax, 0x00000080
-    ;shl eax, 7
-    or ecx, eax
-    mov CR4, ecx  
-    
-    ;mov ecx, CR4
-    ;BTS ecx, 5
-    ;BTS ecx, 7
-    ;mov CR4, ecx
-    
+    BTS ecx, 5
+    BTS ecx, 7
+    mov CR4, ecx
+
     ; 5. Update page table address register (C3) right away with the supplied PAGE_TABLE.
     ; This does nothing as paging is off at the moment as paging is disabled.
     ; LAB 2: Your code here:
     
     mov eax, [PAGE_TABLE]
     mov CR3, eax
-    
+
     ; 6. Enable long mode (LME) and execute protection (NXE) via the EFER MSR register.
     ; LAB 2: Your code here:
     
     mov ecx, 0xC0000080
     rdmsr
-    mov ebx, 0x00000100
-    ;shl ebx, 8
-    or eax, ebx
-    mov ebx, 0x00000800
-    ;shl ebx, 11
-    or eax, ebx
+    bts eax, 8
+    bts eax, 11
     wrmsr
-    
-    ;rdmsr
-    ;bts eax, 8
-    ;bts eax, 11
-    ;wrmsr
-    
+
     ; 7. Enable paging as it is required in 64-bit mode.
     ; LAB 2: Your code here:
     
     mov ecx, CR0
-    ;shl ecx, 31
-    or ecx, 0x80000000
+    BTS ecx, 31
     mov CR0, ecx
     
-    ;mov ecx, CR0
-    ;BTS ecx, 31
-    ;mov CR0, ecx
 
     ; 8. Transition to 64-bit mode by updating CS with LINEAR_CODE64_SEL.
     ; LAB 2: Your code here:
     
     jmp LINEAR_CODE64_SEL:AsmInLongMode
     
+
 AsmInLongMode:
     BITS 64
 
@@ -194,8 +163,7 @@ AsmInLongMode:
     mov gs, ax
     mov fs, ax
     
-    
-    
+
     ; 10. Jump to the kernel code.
     mov ecx, [REL LOADER_PARAMS]
     mov ebx, [REL KERNEL_ENTRY]

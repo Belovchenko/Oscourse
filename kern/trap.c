@@ -69,7 +69,8 @@ trapname(int trapno) {
 void
 trap_init(void) {
   // extern struct Segdesc gdt[];
-  // LAB 8 code
+  // LAB 8: Your code here.
+
   extern void (*divide_thdlr)(void);
 	extern void (*debug_thdlr)(void);
 	extern void (*nmi_thdlr)(void);
@@ -84,6 +85,10 @@ trap_init(void) {
 	extern void (*gpflt_thdlr)(void);
 	extern void (*pgflt_thdlr)(void);
 	extern void (*fperr_thdlr)(void);
+  
+  extern void (*kbd_thdlr)(void);
+  extern void (*serial_thdlr)(void);
+
   extern void (*syscall_thdlr)(void);
 
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, (uint64_t) &divide_thdlr, 0);
@@ -100,7 +105,12 @@ trap_init(void) {
 	SETGATE(idt[T_GPFLT], 0, GD_KT, (uint64_t) &gpflt_thdlr, 0);
 	SETGATE(idt[T_PGFLT], 0, GD_KT, (uint64_t) &pgflt_thdlr, 0);
 	SETGATE(idt[T_FPERR], 0, GD_KT, (uint64_t) &fperr_thdlr, 0);
+    
   SETGATE(idt[T_SYSCALL], 0, GD_KT, (uint64_t) &syscall_thdlr, 3);
+
+  SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, &kbd_thdlr, 3);
+  SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, &serial_thdlr, 3);
+
   // Per-CPU setup
   trap_init_percpu();
 }
@@ -231,10 +241,27 @@ trap_dispatch(struct Trapframe *tf) {
   // Handle keyboard and serial interrupts.
   // LAB 11: Your code here.
 
+  if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
+    kbd_intr();
+    pic_send_eoi(IRQ_KBD);
+    sched_yield();
+    return;
+  }
+
+  if (tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL) {
+    serial_intr();
+    pic_send_eoi(IRQ_SERIAL);
+    sched_yield();
+    return;
+  }
+
   print_trapframe(tf);
-  if (!(tf->tf_cs & 0x3)) {
+  if (!(tf->tf_cs & 0x3)) 
+  {
     panic("unhandled trap in kernel");
-  } else {
+  } 
+  else 
+  {
     env_destroy(curenv);
   }
 }
@@ -301,18 +328,12 @@ page_fault_handler(struct Trapframe *tf) {
 
   // Handle kernel-mode page faults.
 
-  // LAB 8 code
+  // LAB 8: Your code here.
+
   if (!(tf->tf_cs & 3)) {
 		panic("page fault in kernel!");
 	}
 
-	// We've already handled kernel-mode exceptions, so if we get here,
-	// the page fault happened in user mode.
-
-	
-  
-  // LAB 8 code end
-  // LAB 8: Your code here.
 
   // We've already handled kernel-mode exceptions, so if we get here,
   // the page fault happened in user mode.
@@ -346,12 +367,13 @@ page_fault_handler(struct Trapframe *tf) {
   //   (the 'tf' variable points at 'curenv->env_tf').
 
   // LAB 9: Your code here.
+
   struct UTrapframe *utf;
 	uintptr_t uxrsp;
 
   if (curenv->env_pgfault_upcall) {
-		uxrsp = UXSTACKTOP;
-		if (tf->tf_rsp < UXSTACKTOP && tf->tf_rsp >= UXSTACKTOP - PGSIZE) {
+		uxrsp = UXSTACKTOP; // стек исключений
+		if (tf->tf_rsp <= UXSTACKTOP-1 && tf->tf_rsp >= UXSTACKTOP - PGSIZE) {
 			uxrsp = tf->tf_rsp - sizeof(uintptr_t);
 		}
 		uxrsp -= sizeof(struct UTrapframe);
@@ -369,14 +391,9 @@ page_fault_handler(struct Trapframe *tf) {
 		tf->tf_rip = (uintptr_t)curenv->env_pgfault_upcall;
 		env_run(curenv);
 	}
-  // LAB 9 code end
 
-	// Destroy the environment that caused the fault.
-
-  // LAB 8 code
-	cprintf("[%08x] user fault va %08lx ip %08lx\n",
+  cprintf(".%08x. user fault va %08lx ip %08lx\n",
 		curenv->env_id, fault_va, tf->tf_rip);
 	print_trapframe(tf);
 	env_destroy(curenv);
-  // LAB 8 code end
 }

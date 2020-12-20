@@ -211,10 +211,10 @@ vprintfmt(void (*putch)(int, void *), void *putdat, const char *fmt, va_list ap)
         goto number;
 
       // (unsigned) octal
-      case 'o':
-        num  = getuint(&aq, lflag);
-        base = 8;
-        goto number;
+        case 'o':
+            num  = getuint(&aq, lflag);
+            base = 8;
+            goto number;
 
       // pointer
       case 'p':

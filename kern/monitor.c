@@ -39,7 +39,7 @@ static struct Command commands[] = {
     {"timer_start", "Start timer", mon_start},
     {"timer_stop", "Stop timer", mon_stop},
     {"timer_freq", "Count processor frequency", mon_frequency},
-    {"memory", "Print list of all physical memory pages", mon_memory}};
+    {"mon_memory", "Info", mon_memory}};
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -131,8 +131,8 @@ int mon_frequency(int argc, char **argv, struct Trapframe *tf) {
 // LAB 6: Your code here.
 // Implement memory (mon_memory) commands.
 
-int
-mon_memory(int argc, char **argv, struct Trapframe *tf) {
+int mon_memory(int argc, char **argv, struct Trapframe *tf)
+{
   size_t i;
   int is_cur_free;
 
@@ -147,9 +147,9 @@ mon_memory(int argc, char **argv, struct Trapframe *tf) {
     }
     cprintf(is_cur_free ? " FREE\n" : " ALLOCATED\n");
   }
-
   return 0;
 }
+
 
 /***** Kernel monitor command interpreter *****/
 

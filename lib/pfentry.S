@@ -70,8 +70,7 @@ _pgfault_upcall:
 	// can no longer modify any general-purpose registers.
 	// LAB 9: Your code here.
 
-	popq %r15
-	popq %r15
+	add $16, %rsp
 	popq %r15
 	popq %r14
 	popq %r13
@@ -94,22 +93,25 @@ _pgfault_upcall:
 
 	popq %rbx
 	popq %rax
+	// LAB 9 code end
 
 	// Restore rflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies rflags.
-	// LAB 9: Your code here.
 
+	// LAB 9 code
 	pushq 8(%rsp)
 	popfq
-
+	// LAB 9 code end
 
 	// Switch back to the adjusted trap-time stack.
-	// LAB 9: Your code here.
 
+	// LAB 9 code
 	movq 16(%rsp), %rsp
+	// LAB 9 code end
 
 	// Return to re-execute the instruction that faulted.
-	// LAB 9: Your code here.
 
+	// LAB 9 code
 	ret
+	// LAB 9 code end

@@ -8,7 +8,7 @@
 #include <kern/picirq.h>
 
 #ifdef CONFIG_KSPACE
-.comm intr_ret_rip, 8
+.comm intr_ret_rip, 8 /* объявление переменной */
 .comm intr_rsp_reg, 8
 .comm intr_cs, 8
 .comm intr_ss, 8
@@ -32,7 +32,7 @@
 #define TRAPHANDLER(name, num)                                   \
   .globl name;            /* define global symbol for 'name' */  \
   .type name, @function;  /* symbol type is function */          \
-  .align 2;               /* align function definition */        \
+  .align 2;               /* align function definition выравнивание*/        \
   name:                   /* function starts here */             \
   pushq $(num);                                                  \
   jmp _alltraps
@@ -60,7 +60,7 @@ _alltraps:
   movw %ds,(%rsp)
   subq $8,%rsp
   movw %es,(%rsp)
-  PUSHA
+  PUSHA /* сохранение контекста */
   movq $GD_KD,%rax
   movq %rax,%ds
   movq %rax,%es
@@ -132,4 +132,8 @@ TRAPHANDLER_NOEC(mchk_thdlr, T_MCHK)
 TRAPHANDLER_NOEC(simderr_thdlr, T_SIMDERR)
 TRAPHANDLER_NOEC(syscall_thdlr, T_SYSCALL)
 
+TRAPHANDLER_NOEC(kbd_thdlr, IRQ_OFFSET + IRQ_KBD)
+TRAPHANDLER_NOEC(serial_thdlr, IRQ_OFFSET + IRQ_SERIAL)
+
 #endif
+
