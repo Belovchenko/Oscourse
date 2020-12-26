@@ -88,7 +88,8 @@ spawn(const char *prog, const char **argv) {
 
   // Read elf header
   elf = (struct Elf *)elf_buf;
-  if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf) || elf->e_magic != ELF_MAGIC) {
+  if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf) || elf->e_magic != ELF_MAGIC) 
+  {
     close(fd);
     cprintf("elf magic %08x want %08x\n", elf->e_magic, ELF_MAGIC);
     return -E_NOT_EXEC;
@@ -109,7 +110,8 @@ spawn(const char *prog, const char **argv) {
 
   // Set up program segments as defined in ELF header.
   ph = (struct Proghdr *)(elf_buf + elf->e_phoff);
-  for (i = 0; i < elf->e_phnum; i++, ph++) {
+  for (i = 0; i < elf->e_phnum; i++, ph++) 
+  {
     if (ph->p_type != ELF_PROG_LOAD)
       continue;
     perm = PTE_P | PTE_U;

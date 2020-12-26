@@ -32,7 +32,7 @@ bool
 block_is_free(uint32_t blockno) {
   if (super == 0 || blockno >= super->s_nblocks)
     return 0;
-  if (bitmap[blockno / 32] & (1U << (blockno % 32)))
+  if (bitmap[blockno / 32] & (1U << (blockno % 32))) // в одной странице 32 блока
     return 1;
   return 0;
 }
@@ -55,12 +55,13 @@ free_block(uint32_t blockno) {
 //
 // Hint: use free_block as an example for manipulating the bitmap.
 int
-alloc_block(void) {
+alloc_block(void) { // выделяем блок
   // The bitmap consists of one or more blocks.  A single bitmap block
   // contains the in-use bits for BLKBITSIZE blocks.  There are
   // super->s_nblocks blocks in the disk altogether.
 
   // LAB 10: Your code here.
+
   int i;
 	for (i = 0; i < super->s_nblocks; ++i) {
     if (block_is_free(i)) {
@@ -69,6 +70,7 @@ alloc_block(void) {
       return i;
     }
 	}
+
   return -E_NO_DISK;
 }
 
@@ -132,38 +134,37 @@ fs_init(void) {
 //
 // Analogy: This is like pgdir_walk for files.
 // Hint: Don't forget to clear any block you allocate.
+//возвращаем требуемый блок
 int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc) {
   // LAB 10: Your code here.
-   int newb;
+  int newb;
 
   if (filebno >= NDIRECT + NINDIRECT) {
       return -E_INVAL;
   }
 
   if (filebno < NDIRECT) {
-      //*ppdiskbno = &f->f_direct[filebno];
-      //uint64_t f_addr = (uint64_t)(&f->f_direct[filebno]);
-      //memcpy(ppdiskbno, &f_addr, sizeof(uint32_t));
       uint32_t *bno;
-      bno = f->f_direct + filebno;
-      if (ppdiskbno)
-      *ppdiskbno = bno;
-  } else {
+      bno=f->f_direct+filebno;
+      if (ppdiskbno) *ppdiskbno = bno;
+  } 
+  else {
     if (!f->f_indirect) {
       if (!alloc) {
         return -E_NOT_FOUND;
       }
       if ((newb = alloc_block()) < 0) {
         return -E_NO_DISK;
-      } else {
+      } 
+      else 
+      {
         f->f_indirect = newb;
         memset(diskaddr(f->f_indirect), 0, BLKSIZE);
       }
     }
-    *ppdiskbno = (uint32_t *) diskaddr(f->f_indirect) + filebno - NDIRECT;
+    *ppdiskbno = (uint32_t *) diskaddr(f->f_indirect) + (filebno - NDIRECT);//указывает на номер
   }
-  //assert(false);
   return 0;
 }
 
@@ -176,21 +177,23 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 //
 // Hint: Use file_block_walk and alloc_block.
 int
-file_get_block(struct File *f, uint32_t filebno, char **blk) {
+file_get_block(struct File *f, uint32_t filebno, char **blk) { // создает блок в случае необходимости
   // LAB 10: Your code here.
   int r, newb;
   uint32_t *pdiskbno;
-  if ((r = file_block_walk(f, filebno, &pdiskbno, 1)) < 0) {
+  if ((r = file_block_walk(f, filebno, &pdiskbno, 1)) < 0) { // pdiskbno - указатель на указатель на блок
     return r;
   }
-  if (!*pdiskbno) {
+
+  if (!*pdiskbno) 
+  {
     if ((newb = alloc_block()) < 0) {
       return -E_NO_DISK;
-    }
+  }
     *pdiskbno = newb;
   }
+
   *blk = (char *) diskaddr(*pdiskbno);
-  //assert(false);
   return 0;
 }
 

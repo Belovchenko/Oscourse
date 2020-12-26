@@ -235,8 +235,12 @@ trap_dispatch(struct Trapframe *tf) {
 
   // All timers are actually routed through this IRQ.
   if (tf->tf_trapno == IRQ_OFFSET + IRQ_CLOCK) {
+    rtc_check_status();
     // Update vsys memory with current time.
     // LAB 12: Your code here.
+    vsys[VSYS_gettime] = gettime();
+
+    pic_send_eoi(IRQ_CLOCK);
     timer_for_schedule->handle_interrupts();
     sched_yield();
     return;
