@@ -41,6 +41,22 @@ void file_flush(struct File *f);
 int file_remove(const char *path);
 void fs_sync(void);
 
+//IZ1
+int find_in_snapshot_list(struct File * f);
+int snapshot_file_read(struct File *f, void *buf, size_t count, off_t offset);
+int snapshot_file_write(struct File *f, const void *buf, size_t count, off_t offset);
+int find_in_snapshot(struct File * snapshot,uint64_t my_addr, off_t * offset);
+int create_snapshot(char type, const char * comment, const char * name);
+int snapshot_find_size(struct File * f);
+int delete_snapshot(const char *name);
+int accept_snapshot(const char *name);
+int merge_snapshot(struct File *snap);
+int print_snapshot_list();
+int rec_print_snapshot_list(struct File *snap, struct Snapshot_header header);
+int enable_snapshot();
+int de_frag();
+int test_de_frag(int k);
+
 /* int	map_block(uint32_t); */
 bool block_is_free(uint32_t blockno);
 int alloc_block(void);

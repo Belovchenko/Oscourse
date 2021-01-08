@@ -10,6 +10,7 @@
 // tokens from the string.
 int gettoken(char *s, char **token);
 
+union Fsipc fsipcbuf __attribute__((aligned(PGSIZE)));
 // Parse a shell command from string 's' and execute it.
 // Do not return until the shell command is finished.
 // runcmd() is called in a forked child,
@@ -17,6 +18,34 @@ int gettoken(char *s, char **token);
 #define MAXARGS 16
 void
 runcmd(char *s) {
+
+  if (!strncmp(s,"snapshot",8))
+  {
+    cprintf("Sending ipc with snapshot from cmd...\n");
+    envid_t fsenv = ipc_find_env(ENV_TYPE_FS);
+    strcpy(fsipcbuf.file_snapshot.cmd, s);
+    ipc_send(fsenv, FSREQ_SNPSHT, &fsipcbuf, PTE_P | PTE_W | PTE_U);
+    ipc_recv(NULL, &fsipcbuf,NULL);
+    exit();
+  }
+  if (!strncmp(s,"defrag",6))
+  {
+    cprintf("Sending ipc with defrag from cmd...\n");
+    envid_t fsenv = ipc_find_env(ENV_TYPE_FS);
+    strcpy(fsipcbuf.dfrg.cmd, s);
+    ipc_send(fsenv, FSREQ_DFRG, &fsipcbuf, PTE_P | PTE_W | PTE_U);
+    ipc_recv(NULL, &fsipcbuf,NULL);
+    exit();
+  }
+  if (!strncmp(s,"test_defrag", 11))
+  {
+    cprintf("Sending ipc with test_defrag from cmd...\n");
+    envid_t fsenv = ipc_find_env(ENV_TYPE_FS);
+    strcpy(fsipcbuf.test_dfrg.cmd, s);
+    ipc_send(fsenv, FSREQ_TSTDFRG, &fsipcbuf, PTE_P | PTE_W | PTE_U);
+    ipc_recv(NULL, &fsipcbuf,NULL);
+    exit();
+  }
   char *argv[MAXARGS], *t, argv0buf[BUFSIZ];
   int argc, c, i, r, p[2], fd, pipe_child;
 
@@ -69,6 +98,7 @@ again:
           cprintf("syntax error: > not followed by word\n");
           exit();
         }
+        cprintf("%s\n",t);
         if ((fd = open(t, O_WRONLY | O_CREAT | O_TRUNC)) < 0) {
           cprintf("open %s for write: %i", t, fd);
           exit();
@@ -126,6 +156,21 @@ runit:
       cprintf("EMPTY COMMAND\n");
     return;
   }
+
+  //IZ1
+
+  /* cprintf("Her12312312e!!!\n");
+
+  if (!strncmp(s,"snapshot",8))
+  {
+    cprintf("Here!!!\n");
+    envid_t fsenv = ipc_find_env(ENV_TYPE_FS);
+    strcpy(fsipcbuf.file_snapshot.cmd, s);
+    ipc_send(fsenv, FSREQ_SNPSHT, &fsipcbuf, PTE_P | PTE_W | PTE_U);
+    ipc_recv(NULL, &fsipcbuf,NULL);
+    exit();
+  } */
+
 
   // Clean up command line.
   // Read all commands from the filesystem: add an initial '/' to

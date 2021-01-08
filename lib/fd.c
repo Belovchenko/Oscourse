@@ -128,6 +128,7 @@ dev_lookup(int dev_id, struct Dev **dev) {
   int i;
   for (i = 0; devtab[i]; i++)
     if (devtab[i]->dev_id == dev_id) {
+      //cprintf("i=%d dev_id=%d\n",i,dev_id);
       *dev = devtab[i];
       return 0;
     }
@@ -227,6 +228,8 @@ write(int fdnum, const void *buf, size_t n) {
 
   if ((r = fd_lookup(fdnum, &fd)) < 0 || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0)
     return r;
+
+  //cprintf("fd->fd_dev_id: %d\n",(int)fd->fd_dev_id);
   if ((fd->fd_omode & O_ACCMODE) == O_RDONLY) {
     cprintf("[%08x] write %d -- bad mode\n", thisenv->env_id, fdnum);
     return -E_INVAL;

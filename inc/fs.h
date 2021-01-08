@@ -19,6 +19,9 @@
 // Maximum size of a complete pathname, including null
 #define MAXPATHLEN 1024
 
+//IZ1 Maximum size of cmd line starting with snapshot
+#define MAXSNPSHTLEN 256
+
 // Number of block pointers in a File descriptor
 #define NDIRECT 10
 // Number of direct block pointers in an indirect block
@@ -52,6 +55,9 @@ struct File {
 
 #define FS_MAGIC 0x4A0530AE // related vaguely to 'J\0S!'
 
+
+#define SNAP_BUF_SIZE 100
+
 struct Super {
   uint32_t s_magic;   // Magic number: FS_MAGIC
   uint32_t s_nblocks; // Total number of blocks on disk
@@ -69,6 +75,9 @@ enum {
   FSREQ_STAT,
   FSREQ_FLUSH,
   FSREQ_REMOVE,
+  FSREQ_SNPSHT,
+  FSREQ_DFRG,
+  FSREQ_TSTDFRG,
   FSREQ_SYNC
 };
 
@@ -107,9 +116,34 @@ union Fsipc {
   struct Fsreq_remove {
     char req_path[MAXPATHLEN];
   } remove;
+  struct Fsreq_snpsht {
+    char cmd[MAXSNPSHTLEN];
+  } file_snapshot;
+  struct Fsreq_dfrg{
+    char cmd[MAXSNPSHTLEN];
+  } dfrg;
+  struct Fsreq_tsdfrg{
+    char cmd[MAXSNPSHTLEN];
+  } test_dfrg;
+
 
   // Ensure Fsipc is one page
   char _pad[PGSIZE];
+};
+
+struct Snapshot_header
+{
+  int date;
+  char comment[100];
+  uint32_t type;
+  uint32_t old_bitmap;
+  uint64_t prev_snapshot;
+};
+
+struct Snapshot_table
+{
+  uint32_t disk_addr;
+  char value;
 };
 
 #endif /* !JOS_INC_FS_H */

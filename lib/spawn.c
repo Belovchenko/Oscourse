@@ -104,7 +104,8 @@ spawn(const char *prog, const char **argv) {
   child_tf        = envs[ENVX(child)].env_tf;
   child_tf.tf_rip = elf->e_entry;
 
-  void *p=&child_tf.tf_rsp;
+  void *p = &child_tf.tf_rsp;
+
   if ((r = init_stack(child, argv, p)) < 0)
     return r;
 

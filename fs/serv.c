@@ -195,6 +195,8 @@ int
 serve_read(envid_t envid, union Fsipc *ipc) {
   struct Fsreq_read *req = &ipc->read;
 
+  //cprintf("server_read\n");
+
   if (debug)
     cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, (uint32_t)req->req_n);
 
@@ -207,10 +209,14 @@ serve_read(envid_t envid, union Fsipc *ipc) {
 	  return r;
 	}
 
+  //cprintf("req->req_n = %d\n",(int)req->req_n);
+
 	int count = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset);
   if (count > 0) {
     o->o_fd->fd_offset += count;
   } 
+
+  //cprintf("r = %d\n",count);
 	return count;
 }
 
@@ -280,6 +286,143 @@ serve_sync(envid_t envid, union Fsipc *req) {
   return 0;
 }
 
+int
+serve_de_frag(envid_t envid, union Fsipc *req)
+{
+  cprintf("FS received defragmentation message: %s!\n",req->dfrg.cmd);
+  return de_frag();
+}
+
+int
+serve_test_de_frag(envid_t envid, union Fsipc *req)
+{
+  cprintf("FS received test_defragmentation message: %s!\n",req->dfrg.cmd);
+  if (!strcmp(req->dfrg.cmd, "test_defrag -c")) return test_de_frag(1);
+  if (!strcmp(req->dfrg.cmd, "test_defrag")) return test_de_frag(0);
+  cprintf("Incorrect 'test_defrag' command syntax\n");
+  return 0;
+}
+
+int serve_snpsht(envid_t envid, union Fsipc *req)
+{
+  cprintf("FS received snapshot message: %s!\n",req->file_snapshot.cmd);
+  char c;
+  char * cmd = req->file_snapshot.cmd; // пропускаем snapshot
+  cmd+=9;
+  char type = 0;
+  char action = 0;
+  while ((c=*(cmd++))!='\0')
+  {
+    if (c=='-')
+    {
+      c = *(cmd++);
+      switch(c)
+      {
+        case 'i': 
+          type = c;
+          break;
+        case 'f':
+          type = c;
+          break;
+        case 'c':
+          action = c;
+          break;
+        case 'a':
+          action = c;
+          break;
+        case 'd':
+          action = c;
+          break;
+        case 'p':
+          
+          //cprintf("I am here !44!\n");
+          action = c;
+          c=*(cmd++);
+          if (c != '\0')
+          {
+            cprintf("Incorrect 'snapshot' command syntax\n");
+            return -1;
+          }
+          cmd--;
+          break;
+        case 'e':
+          
+          action = c;
+          c=*(cmd++);
+          if (c != '\0')
+          {
+            cprintf("Incorrect 'snapshot' command syntax\n");
+            return -1;
+          }
+          cmd--;
+          break;
+      }
+    }
+    else if (c==' ')
+      continue;
+    else 
+    {
+      cmd--;
+      break;
+    }
+  }
+  if ((c == '\0') && (action != 'p') && (action != 'e'))
+    return -1;
+  
+  if (action == 'c')
+  {
+    int i = 0;
+    while (*(cmd+i)!=' ' && *(cmd+i)!='\0')
+      i++;
+    if (*(cmd+i)==' ')
+    {
+      *(cmd+i) = '\0';
+      i++; 
+    }
+    return create_snapshot(type, cmd+i, cmd);
+  }
+
+  if (action == 'a')
+  {
+    int i = 0;
+    while (*(cmd+i)!=' ' && *(cmd+i)!='\0')
+      i++;
+    if (*(cmd+i)==' ')
+    {
+      *(cmd+i) = '\0';
+      i++; 
+    }
+    return accept_snapshot(cmd);
+  }
+
+  if (action == 'd')
+  {
+    int i = 0;
+    while (*(cmd+i)!=' ' && *(cmd+i)!='\0')
+      i++;
+    if (*(cmd+i)==' ')
+    {
+      *(cmd+i) = '\0';
+      i++; 
+    }
+    return delete_snapshot(cmd);
+  }
+
+  if (action == 'p')
+  {
+    //cprintf("I am here !33!\n");
+    return print_snapshot_list();
+  }
+
+  if (action == 'e')
+  {
+    //cprintf("I am here !33!\n\n\n");
+    return enable_snapshot();
+  }
+
+  return 0;
+}
+
 typedef int (*fshandler)(envid_t envid, union Fsipc *req);
 
 fshandler handlers[] = {
@@ -290,7 +433,10 @@ fshandler handlers[] = {
     [FSREQ_FLUSH]    = (fshandler)serve_flush,
     [FSREQ_WRITE]    = (fshandler)serve_write,
     [FSREQ_SET_SIZE] = (fshandler)serve_set_size,
-    [FSREQ_SYNC]     = serve_sync};
+    [FSREQ_SNPSHT]   = serve_snpsht,
+    [FSREQ_SYNC]     = serve_sync,
+    [FSREQ_DFRG]     = serve_de_frag,
+    [FSREQ_TSTDFRG]  = serve_test_de_frag};
 #define NHANDLERS (sizeof(handlers) / sizeof(handlers[0]))
 
 void
@@ -317,9 +463,13 @@ serve(void) {
     pg = NULL;
     if (req == FSREQ_OPEN) {
       r = serve_open(whom, (struct Fsreq_open *)fsreq, &pg, &perm);
-    } else if (req < NHANDLERS && handlers[req]) {
+    } 
+    else if (req < NHANDLERS && handlers[req]) 
+    {
       r = handlers[req](whom, fsreq);
-    } else {
+    } 
+    else 
+    {
       cprintf("Invalid request code %d from %08x\n", req, whom);
       r = -E_INVAL;
     }
