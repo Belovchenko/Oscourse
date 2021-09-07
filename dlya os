@@ -1,0 +1,5 @@
+export PATH="/home/belovchenko/LLVMClang/jetos-llvm/bin:$PATH"
+grep -r название
+
+[drm:dpcd_set_source_specific_data [amdgpu]] *ERROR* Error in DP aux read transaction, not writing source specific data
+
